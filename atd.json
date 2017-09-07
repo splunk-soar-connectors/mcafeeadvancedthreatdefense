@@ -12,7 +12,7 @@
     "product_vendor": "McAfee",
     "product_name": "ATD",
     "product_version_regex": ".*",
-    "min_phantom_version": "1.2.236",
+    "min_phantom_version": "3.0.247",
     "logo": "atd.png",
     "configuration": {
           "atd_ip": {
@@ -574,7 +574,8 @@
           },
           {
             "data_path": "action_result.parameter.vault_id",
-            "data_type": "string"
+            "data_type": "string",
+            "contains": ["vault id", "pe file"]
           },
           {
             "data_path": "summary.total_objects",

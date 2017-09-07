@@ -19,7 +19,7 @@ def b64(user, password):
 
 
 def sessionsetup(creds, url_base):
-    requests.packages.urllib3.disable_warnings()
+    # requests.packages.urllib3.disable_warnings()
     sessionheaders = { 'VE-SDK-API': creds,
                        'Content-Type': 'application/json',
                        'Accept': 'application/vnd.ve.v1.0+json' }
@@ -56,9 +56,9 @@ def get_report(sessionheaders, taskid, url_base, itype, bc):
     try:
         r = requests.get(url_base + "showreport.php", params=payload, headers=sessionheaders, verify=False)
     except Exception as e:
-        self.debug_print('Can not get report of this taskid: %d,\nReturned error: %s ' % (taskid, e))
+        bc.debug_print('Can not get report of this taskid: %d,\nReturned error: %s ' % (taskid, e))
     if r.status_code == 400:
-        self.debug_print('Inspection not yet finished')
+        bc.debug_print('Inspection not yet finished')
     data = json.loads(r.content)
     return data
 
