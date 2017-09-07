@@ -14,58 +14,58 @@ from phantom.vault import Vault
 
 # Define ATD API information
 def b64(user, password):
-        creds = user + ':' + password
-        return base64.b64encode(creds)
+    creds = user + ':' + password
+    return base64.b64encode(creds)
 
 
 def sessionsetup(creds, url_base):
-        requests.packages.urllib3.disable_warnings()
-        sessionheaders = { 'VE-SDK-API': creds,
-                                           'Content-Type': 'application/json',
-                                           'Accept': 'application/vnd.ve.v1.0+json' }
-        r = requests.get(url_base + "session.php", headers=sessionheaders, verify=False)
-        data = r.json()
-        results = data.get('results')
-        headers = { 'VE-SDK-API': base64.b64encode(results['session'] + ':' + results['userId']),
+    requests.packages.urllib3.disable_warnings()
+    sessionheaders = { 'VE-SDK-API': creds,
+                       'Content-Type': 'application/json',
+                       'Accept': 'application/vnd.ve.v1.0+json' }
+    r = requests.get(url_base + "session.php", headers=sessionheaders, verify=False)
+    data = r.json()
+    results = data.get('results')
+    headers = { 'VE-SDK-API': base64.b64encode(results['session'] + ':' + results['userId']),
                 'Accept': 'application/vnd.ve.v1.0+json',
                 'accept-encoding': 'gzip;q=0,deflate,sdch'}
-        return headers
+    return headers
 
 
 def profiles(sessionheaders, url_base):
-        r = requests.get(url_base + "vmprofiles.php", headers=sessionheaders, verify=False)
-        print r
-        response = r.json()
-        for item in response['results']:
-             print(item['name'].encode('ascii'), item['vmProfileid'])
+    r = requests.get(url_base + "vmprofiles.php", headers=sessionheaders, verify=False)  # noqa
+    # print r
+    # response = r.json()
+    # for item in response['results']:
+    #     print(item['name'].encode('ascii'), item['vmProfileid'])
 
 
 def submit_file(sessionheaders, ifile, profileID, url_base):
-        payload = {'data': {'vmProfileList': profileID, 'submitType': 0}, 'amas_filename': 'test.exe'}
-        data = json.dumps(payload)
-        files = {'amas_filename': open(ifile, 'rb')}
-        r = requests.post(url_base + "fileupload.php", headers=sessionheaders, files=files, data={'data': data}, verify=False)
-        response = r.json()
-        for line in response['results']:
-            taskid = line['taskId']
-        return taskid
+    payload = {'data': {'vmProfileList': profileID, 'submitType': 0}, 'amas_filename': 'test.exe'}
+    data = json.dumps(payload)
+    files = {'amas_filename': open(ifile, 'rb')}
+    r = requests.post(url_base + "fileupload.php", headers=sessionheaders, files=files, data={'data': data}, verify=False)
+    response = r.json()
+    for line in response['results']:
+        taskid = line['taskId']
+    return taskid
 
 
-def get_report(sessionheaders, taskid, url_base, itype):
-        payload = {'iTaskId': taskid, 'iType': 'json'}
-        try:
-            r = requests.get(url_base + "showreport.php", params=payload, headers=sessionheaders, verify=False)
-        except Exception as e:
-            print 'Can not get report of this taskid: %d,\nReturned error: %s ' % (taskid, e)
-        if r.status_code == 400:
-            print 'Inspection not yet finished'
-        data = json.loads(r.content)
-        return data
+def get_report(sessionheaders, taskid, url_base, itype, bc):
+    payload = {'iTaskId': taskid, 'iType': 'json'}
+    try:
+        r = requests.get(url_base + "showreport.php", params=payload, headers=sessionheaders, verify=False)
+    except Exception as e:
+        self.debug_print('Can not get report of this taskid: %d,\nReturned error: %s ' % (taskid, e))
+    if r.status_code == 400:
+        self.debug_print('Inspection not yet finished')
+    data = json.loads(r.content)
+    return data
 
 
 def logout(sessionheaders, url_base):
-        r = requests.delete(url_base + "session.php", headers=sessionheaders, verify=False)
-        print r.json()
+    r = requests.delete(url_base + "session.php", headers=sessionheaders, verify=False)  # noqa
+    # print r.json()
 
 
 # Define the App Class
@@ -103,16 +103,16 @@ class ATDConnector(BaseConnector):
         self.save_progress(phantom.APP_PROG_CONNECTING_TO_ELLIPSES, atd_ip)
 
         try:
-           creds = b64(atd_user, atd_pw)
-           atdurl = "https://" + atd_ip + "/php/"
-           headers = sessionsetup(creds, atdurl)
-           profiles(headers, atdurl)
-           logout(headers, atdurl)
+            creds = b64(atd_user, atd_pw)
+            atdurl = "https://" + atd_ip + "/php/"
+            headers = sessionsetup(creds, atdurl)
+            profiles(headers, atdurl)
+            logout(headers, atdurl)
 
         except:
-           self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
-           self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
-           return self.get_status()
+            self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
+            self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
+            return self.get_status()
 
         return self.set_status_save_progress(phantom.APP_SUCCESS, ATD_SUCC_CONNECTIVITY_TEST)
 
@@ -136,22 +136,21 @@ class ATDConnector(BaseConnector):
         try:
             # Placeholder to get the file from the vault
             try:
-               filepath = Vault.get_file_path(atd_vaultid)
+                filepath = Vault.get_file_path(atd_vaultid)
             except:
-               return action_result.set_status(phantom.APP_ERROR, 'File not found in vault ("{}")'.format(atd_vaultid))
+                return action_result.set_status(phantom.APP_ERROR, 'File not found in vault ("{}")'.format(atd_vaultid))
 
             creds = b64(atd_user, atd_pw)
             atdurl = "https://" + atd_ip + "/php/"
             headers = sessionsetup(creds, atdurl)
             taskid = submit_file(headers, filepath, atd_profile, atdurl)
             while True:
-               try:
-                  report = get_report(headers, taskid, atdurl, itype)
-                  print report
-                  break
-               except:
-                  time.sleep(30)
-                  pass
+                try:
+                    report = get_report(headers, taskid, atdurl, itype, self)
+                    break
+                except:
+                    time.sleep(30)
+                    pass
 
             logout(headers, atdurl)
             action_result.add_data(report)
@@ -169,9 +168,6 @@ class ATDConnector(BaseConnector):
             action_result.update_summary(summary)
 
         except:
-            self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
-            self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
-            return self.get_status()
             action_result.set_status(phantom.APP_ERROR, ATD_ERR_QUERY)
             return action_result.get_status()
 

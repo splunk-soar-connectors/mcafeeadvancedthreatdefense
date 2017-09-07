@@ -1,12 +1,12 @@
 {
-    "appid"       : "a1ab9a21-0b2e-4e21-9af7-7901ba97c599",
-    "name"      : "McAfee Advanced Threat Defense (ATD)",
-    "description" : "This app supports executing investigative actions like 'detonate file' to analyze executables on the McAfee ATD appliance.",
+    "appid": "a1ab9a21-0b2e-4e21-9af7-7901ba97c599",
+    "name": "McAfee Advanced Threat Defense (ATD)",
+    "description": "This app supports executing investigative actions like 'detonate file' to analyze executables on the McAfee ATD appliance",
     "publisher": "Martin Ohl",
     "package_name": "phantom_atd",
     "type": "threat intel",
     "license": "Copyright (c) Martin Ohl 2017",
-    "main_module" : "atd_connector.pyc",
+    "main_module": "atd_connector.pyc",
     "app_version": "1.0",
     "utctime_updated": "2017-03-10T07:09:42.000000Z",
     "product_vendor": "McAfee",
@@ -43,7 +43,7 @@
     "actions": [
       {
         "action": "test connectivity",
-        "description": "Validate the ATD connectivity.",
+        "description": "Validate the ATD connectivity",
         "type": "test",
         "identifier": "test_asset_connectivity",
         "read_only": true,
@@ -54,8 +54,8 @@
       },
       {
         "action" : "detonate file",
-        "description": "Run the file in the McAfee ATD and retrieve the analysis results.",
-        "verbose": "This action requires the input file to be present in the vault and therefore takes the vault id as the input parameter",
+        "description": "Run the file in the McAfee ATD and retrieve the analysis results",
+        "verbose": "This action requires the input file to be present in the vault and therefore takes the vault id as the input parameter.",
         "type": "investigate",
         "identifier": "detonate_file",
         "read_only": true,
