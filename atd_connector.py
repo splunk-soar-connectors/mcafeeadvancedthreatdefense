@@ -18,12 +18,12 @@ def b64(user, password):
     return base64.b64encode(creds)
 
 
-def sessionsetup(creds, url_base):
+def sessionsetup(creds, url_base, verify):
     # requests.packages.urllib3.disable_warnings()
     sessionheaders = { 'VE-SDK-API': creds,
                        'Content-Type': 'application/json',
                        'Accept': 'application/vnd.ve.v1.0+json' }
-    r = requests.get(url_base + "session.php", headers=sessionheaders, verify=False)
+    r = requests.get(url_base + "session.php", headers=sessionheaders, verify=verify)
     data = r.json()
     results = data.get('results')
     headers = { 'VE-SDK-API': base64.b64encode(results['session'] + ':' + results['userId']),
@@ -32,29 +32,29 @@ def sessionsetup(creds, url_base):
     return headers
 
 
-def profiles(sessionheaders, url_base):
-    r = requests.get(url_base + "vmprofiles.php", headers=sessionheaders, verify=False)  # noqa
+def profiles(sessionheaders, url_base, verify):
+    r = requests.get(url_base + "vmprofiles.php", headers=sessionheaders, verify=verify)  # noqa
     # print r
     # response = r.json()
     # for item in response['results']:
     #     print(item['name'].encode('ascii'), item['vmProfileid'])
 
 
-def submit_file(sessionheaders, ifile, profileID, url_base):
+def submit_file(sessionheaders, ifile, profileID, url_base, verify):
     payload = {'data': {'vmProfileList': profileID, 'submitType': 0}, 'amas_filename': 'test.exe'}
     data = json.dumps(payload)
     files = {'amas_filename': open(ifile, 'rb')}
-    r = requests.post(url_base + "fileupload.php", headers=sessionheaders, files=files, data={'data': data}, verify=False)
+    r = requests.post(url_base + "fileupload.php", headers=sessionheaders, files=files, data={'data': data}, verify=verify)
     response = r.json()
     for line in response['results']:
         taskid = line['taskId']
     return taskid
 
 
-def get_report(sessionheaders, taskid, url_base, itype, bc):
+def get_report(sessionheaders, taskid, url_base, itype, bc, verify):
     payload = {'iTaskId': taskid, 'iType': 'json'}
     try:
-        r = requests.get(url_base + "showreport.php", params=payload, headers=sessionheaders, verify=False)
+        r = requests.get(url_base + "showreport.php", params=payload, headers=sessionheaders, verify=verify)
     except Exception as e:
         bc.debug_print('Can not get report of this taskid: %d,\nReturned error: %s ' % (taskid, e))
     if r.status_code == 400:
@@ -63,8 +63,8 @@ def get_report(sessionheaders, taskid, url_base, itype, bc):
     return data
 
 
-def logout(sessionheaders, url_base):
-    r = requests.delete(url_base + "session.php", headers=sessionheaders, verify=False)  # noqa
+def logout(sessionheaders, url_base, verify):
+    r = requests.delete(url_base + "session.php", headers=sessionheaders, verify=verify)  # noqa
     # print r.json()
 
 
@@ -75,6 +75,11 @@ class ATDConnector(BaseConnector):
 
         # Call the BaseConnectors init first
         super(ATDConnector, self).__init__()
+
+    def initialize(self):
+        config = self.get_config()
+        self._verify = config.get('verify_server_cert', False)
+        return phantom.APP_SUCCESS
 
     def _test_connectivity(self, param):
 
@@ -105,9 +110,9 @@ class ATDConnector(BaseConnector):
         try:
             creds = b64(atd_user, atd_pw)
             atdurl = "https://" + atd_ip + "/php/"
-            headers = sessionsetup(creds, atdurl)
-            profiles(headers, atdurl)
-            logout(headers, atdurl)
+            headers = sessionsetup(creds, atdurl, self._verify)
+            profiles(headers, atdurl, self._verify)
+            logout(headers, atdurl, self._verify)
 
         except:
             self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
@@ -142,17 +147,17 @@ class ATDConnector(BaseConnector):
 
             creds = b64(atd_user, atd_pw)
             atdurl = "https://" + atd_ip + "/php/"
-            headers = sessionsetup(creds, atdurl)
-            taskid = submit_file(headers, filepath, atd_profile, atdurl)
+            headers = sessionsetup(creds, atdurl, self._verify)
+            taskid = submit_file(headers, filepath, atd_profile, atdurl, self._verify)
             while True:
                 try:
-                    report = get_report(headers, taskid, atdurl, itype, self)
+                    report = get_report(headers, taskid, atdurl, itype, self, self._verify)
                     break
                 except:
                     time.sleep(30)
                     pass
 
-            logout(headers, atdurl)
+            logout(headers, atdurl, self._verify)
             action_result.add_data(report)
             action_result.set_status(phantom.APP_SUCCESS, ATD_SUCC_QUERY)
 
