@@ -1,6 +1,6 @@
 {
-    "appid": "4d6fc5e0-b10c-4231-8d7a-b5195c46e613",
-    "name": "McAfee Advanced Threat Defence",
+    "appid": "a1ab9a21-0b2e-4e21-9af7-7901ba97c599",
+    "name": "McAfee Advanced Threat Defense (ATD)",
     "description": "This app supports investigative actions like 'detonate file' and 'detonate url' on the McAfee ATD appliance.",
     "type": "sandbox",
     "product_vendor": "McAfee",
