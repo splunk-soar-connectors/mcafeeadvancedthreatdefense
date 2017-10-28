@@ -1,0 +1,13 @@
+ATD_IP = "atd_ip"
+ATD_USER = "atd_user"
+ATD_PW = "atd_pw"
+ATD_PROFILE = "atd_profile"
+ATD_VAULTID = "vault_id"
+ATD_SUBURL = "atd_suburl"
+
+ATD_ERR_QUERY = "ATD query failed"
+ATD_SUCC_QUERY = "ATD query successful"
+ATD_ERR_QUERY_RETURNED_NO_DATA = "ATD did not return any information"
+ATD_ERR_SERVER_CONNECTION = "Connection to server failed"
+ATD_ERR_CONNECTIVITY_TEST = "Connectivity test failed"
+ATD_SUCC_CONNECTIVITY_TEST = "Connectivity test passed"
