@@ -1,15 +1,19 @@
 # Phantom App imports
 import phantom.app as phantom
-import base64
-import json
+import phantom.rules as rules
 import requests
-import sys
+import json
+import base64
 import time
 
 from atd_consts import *
 from phantom.base_connector import BaseConnector
 from phantom.action_result import ActionResult
-from phantom.vault import Vault
+
+
+class RetVal(tuple):
+    def __new__(cls, val1, val2):
+        return tuple.__new__(RetVal, (val1, val2))
 
 
 # Define ATD API information
@@ -19,10 +23,9 @@ def b64(user, password):
 
 
 def sessionsetup(creds, url_base, verify):
-    # requests.packages.urllib3.disable_warnings()
     sessionheaders = { 'VE-SDK-API': creds,
-                       'Content-Type': 'application/json',
-                       'Accept': 'application/vnd.ve.v1.0+json' }
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/vnd.ve.v1.0+json' }
     r = requests.get(url_base + "session.php", headers=sessionheaders, verify=verify)
     data = r.json()
     results = data.get('results')
@@ -32,57 +35,77 @@ def sessionsetup(creds, url_base, verify):
     return headers
 
 
-def profiles(sessionheaders, url_base, verify):
-    r = requests.get(url_base + "vmprofiles.php", headers=sessionheaders, verify=verify)  # noqa
-    # print r
-    # response = r.json()
-    # for item in response['results']:
-    #     print(item['name'].encode('ascii'), item['vmProfileid'])
-
-
-def submit_file(sessionheaders, ifile, profileID, url_base, verify):
-    payload = {'data': {'vmProfileList': profileID, 'submitType': 0}, 'amas_filename': 'test.exe'}
+def submit_file(sessionheaders, ifile, filename, profileID, url_base, verify):
+    payload = {'data': {'vmProfileList': profileID, 'submitType': 0}}
     data = json.dumps(payload)
-    files = {'amas_filename': open(ifile, 'rb')}
-    r = requests.post(url_base + "fileupload.php", headers=sessionheaders, files=files, data={'data': data}, verify=verify)
-    response = r.json()
-    for line in response['results']:
-        taskid = line['taskId']
-    return taskid
+
+    try:
+       files = {'amas_filename': (filename, open(ifile, 'rb'))}
+    except Exception as e:
+       self.set_status(phantom.APP_ERROR)
+       self.append_to_message('Error opening the file', e)
+
+    try:
+       r = requests.post(url_base + "fileupload.php", headers=sessionheaders, files=files, data={'data': data}, verify=verify)
+       response = r.json()
+       for line in response['results']:
+          taskid = line['taskId']
+       return taskid
+    except Exception as e:
+       self.set_status(phantom.APP_ERROR)
+       self.append_to_message('Error submitting files to ATD', e)
 
 
-def get_report(sessionheaders, taskid, url_base, itype, bc, verify):
+def submit_url(sessionheaders, suburl, profileID, url_base, verify):
+    payload = {'data': {'vmProfileList': profileID, 'submitType': 1, 'url': suburl}}
+    data = json.dumps(payload)
+
+    try:
+       r = requests.post(url_base + "fileupload.php", headers=sessionheaders, data={'data': data}, verify=verify)
+       response = r.json()
+       for line in response['results']:
+          taskid = line['taskId']
+       return taskid
+    except Exception as e:
+       self.set_status(phantom.APP_ERROR)
+       self.append_to_message('Error submitting url to ATD', e)
+
+
+def get_report(sessionheaders, taskid, url_base, itype, verify):
     payload = {'iTaskId': taskid, 'iType': 'json'}
     try:
         r = requests.get(url_base + "showreport.php", params=payload, headers=sessionheaders, verify=verify)
     except Exception as e:
-        bc.debug_print('Can not get report of this taskid: %d,\nReturned error: %s ' % (taskid, e))
+        print 'Can not get report of this taskid: %d,\nReturned error: %s ' % (taskid, e)
     if r.status_code == 400:
-        bc.debug_print('Inspection not yet finished')
+        print 'Inspection not yet finished'
     data = json.loads(r.content)
     return data
 
 
 def logout(sessionheaders, url_base, verify):
-    r = requests.delete(url_base + "session.php", headers=sessionheaders, verify=verify)  # noqa
-    # print r.json()
+    requests.delete(url_base + "session.php", headers=sessionheaders, verify=verify)
 
 
 # Define the App Class
-class ATDConnector(BaseConnector):
+class MfeAtdConnector(BaseConnector):
 
     def __init__(self):
 
-        # Call the BaseConnectors init first
-        super(ATDConnector, self).__init__()
+        super(MfeAtdConnector, self).__init__()
+
+        self._state = None
+        self._base_url = None
 
     def initialize(self):
+
         config = self.get_config()
         self._verify = config.get('verify_server_cert', False)
         return phantom.APP_SUCCESS
 
-    def _test_connectivity(self, param):
+    def _handle_test_connectivity(self, param):
 
+        # Add an action result object to self (BaseConnector) to represent the action for this param
         config = self.get_config()
 
         # Get Variables
@@ -108,28 +131,25 @@ class ATDConnector(BaseConnector):
         self.save_progress(phantom.APP_PROG_CONNECTING_TO_ELLIPSES, atd_ip)
 
         try:
-            creds = b64(atd_user, atd_pw)
-            atdurl = "https://" + atd_ip + "/php/"
-            headers = sessionsetup(creds, atdurl, self._verify)
-            profiles(headers, atdurl, self._verify)
-            logout(headers, atdurl, self._verify)
+           creds = b64(atd_user, atd_pw)
+           atdurl = "https://" + atd_ip + "/php/"
+           headers = sessionsetup(creds, atdurl, self._verify)
+           logout(headers, atdurl, self._verify)
 
         except:
-            self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
-            self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
-            return self.get_status()
+           self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
+           self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
+           return self.get_status()
 
         return self.set_status_save_progress(phantom.APP_SUCCESS, ATD_SUCC_CONNECTIVITY_TEST)
 
     def _handle_detonate_file(self, param):
 
-        # Push IP Address over the McAfee Data Exchange Layer (DXL)
+        self.save_progress("In action handler for: {0}".format(self.get_action_identifier()))
+        action_result = self.add_action_result(ActionResult(dict(param)))
 
         config = self.get_config()
         self.debug_print("param", param)
-
-        action_result = ActionResult(dict(param))
-        self.add_action_result(action_result)
 
         itype = ''
         atd_ip = config.get(ATD_IP)
@@ -141,38 +161,76 @@ class ATDConnector(BaseConnector):
         try:
             # Placeholder to get the file from the vault
             try:
-                filepath = Vault.get_file_path(atd_vaultid)
+               success, message, info = rules.vault_info(vault_id=atd_vaultid)
+               info = json.loads(json.dumps(info[0]))
+               filepath = info['path']
+               filename = info['name']
             except:
-                return action_result.set_status(phantom.APP_ERROR, 'File not found in vault ("{}")'.format(atd_vaultid))
+               return action_result.set_status(phantom.APP_ERROR, 'File not found in vault ("{}")'.format(atd_vaultid))
 
             creds = b64(atd_user, atd_pw)
             atdurl = "https://" + atd_ip + "/php/"
             headers = sessionsetup(creds, atdurl, self._verify)
-            taskid = submit_file(headers, filepath, atd_profile, atdurl, self._verify)
+            taskid = submit_file(headers, filepath, filename, atd_profile, atdurl, self._verify)
             while True:
-                try:
-                    report = get_report(headers, taskid, atdurl, itype, self, self._verify)
-                    break
-                except:
-                    time.sleep(30)
-                    pass
+               try:
+                  report = get_report(headers, taskid, atdurl, itype, self._verify)
+                  print report
+                  break
+               except:
+                  time.sleep(10)
+                  pass
 
             logout(headers, atdurl, self._verify)
             action_result.add_data(report)
             action_result.set_status(phantom.APP_SUCCESS, ATD_SUCC_QUERY)
 
-            date = report['Summary']['Subject']['Timestamp']
-            name = report['Summary']['Subject']['Name']
-            sha1 = report['Summary']['Subject']['sha-1']
-            type = report['Summary']['Subject']['Type']
-            size = report['Summary']['Subject']['size']
-            verdict = report['Summary']['Verdict']['Description']
-            severity = report['Summary']['Verdict']['Severity']
-            summary = {'date': date, 'name': name, 'sha1': sha1, 'type': type, 'size': size, 'verdict': verdict, 'severity': severity}
+        except:
+            self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
+            self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
+            return self.get_status()
+            action_result.set_status(phantom.APP_ERROR, ATD_ERR_QUERY)
+            return action_result.get_status()
 
-            action_result.update_summary(summary)
+        return action_result.get_status()
+
+    def _handle_detonate_url(self, param):
+
+        self.save_progress("In action handler for: {0}".format(self.get_action_identifier()))
+        action_result = self.add_action_result(ActionResult(dict(param)))
+
+        config = self.get_config()
+        self.debug_print("param", param)
+
+        itype = ''
+        atd_ip = config.get(ATD_IP)
+        atd_user = config.get(ATD_USER)
+        atd_pw = config.get(ATD_PW)
+        atd_profile = config.get(ATD_PROFILE)
+        atd_suburl = param[ATD_SUBURL]
+
+        try:
+            creds = b64(atd_user, atd_pw)
+            atdurl = "https://" + atd_ip + "/php/"
+            headers = sessionsetup(creds, atdurl, self._verify)
+            taskid = submit_url(headers, atd_suburl, atd_profile, atdurl, self._verify)
+            while True:
+               try:
+                  report = get_report(headers, taskid, atdurl, itype, self._verify)
+                  print report
+                  break
+               except:
+                  time.sleep(30)
+                  pass
+
+            logout(headers, atdurl, self._verify)
+            action_result.add_data(report)
+            action_result.set_status(phantom.APP_SUCCESS, ATD_SUCC_QUERY)
 
         except:
+            self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
+            self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
+            return self.get_status()
             action_result.set_status(phantom.APP_ERROR, ATD_ERR_QUERY)
             return action_result.get_status()
 
@@ -181,20 +239,25 @@ class ATDConnector(BaseConnector):
     def handle_action(self, param):
 
         ret_val = phantom.APP_SUCCESS
-
         action_id = self.get_action_identifier()
+
         self.debug_print("action_id", self.get_action_identifier())
 
-        if (action_id == "detonate_file"):
+        if action_id == 'test_connectivity':
+            ret_val = self._handle_test_connectivity(param)
+
+        elif action_id == 'detonate_file':
             ret_val = self._handle_detonate_file(param)
-        elif (action_id == phantom.ACTION_ID_TEST_ASSET_CONNECTIVITY):
-            ret_val = self._test_connectivity(param)
+
+        elif action_id == 'detonate_url':
+            ret_val = self._handle_detonate_url(param)
 
         return ret_val
 
 
 if __name__ == '__main__':
 
+    import sys
     import pudb
     pudb.set_trace()
 
@@ -207,7 +270,7 @@ if __name__ == '__main__':
         in_json = json.loads(in_json)
         print(json.dumps(in_json, indent=4))
 
-        connector = ATDConnector()
+        connector = MfeAtdConnector()
         connector.print_progress_message = True
         ret_val = connector._handle_action(json.dumps(in_json), None)
         print (json.dumps(json.loads(ret_val), indent=4))

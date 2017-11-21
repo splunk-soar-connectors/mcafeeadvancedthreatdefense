@@ -3,6 +3,7 @@ ATD_USER = "atd_user"
 ATD_PW = "atd_pw"
 ATD_PROFILE = "atd_profile"
 ATD_VAULTID = "vault_id"
+ATD_SUBURL = "atd_suburl"
 
 ATD_ERR_QUERY = "ATD query failed"
 ATD_SUCC_QUERY = "ATD query successful"
