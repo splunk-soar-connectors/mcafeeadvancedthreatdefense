@@ -1,7 +1,7 @@
 {
     "appid": "a1ab9a21-0b2e-4e21-9af7-7901ba97c599",
     "name": "McAfee Advanced Threat Defense (ATD)",
-    "description": "This app supports investigative actions like 'detonate file' and 'detonate url' on the McAfee ATD appliance.",
+    "description": "This app supports multiple investigative actions on the McAfee ATD appliance.",
     "type": "sandbox",
     "product_vendor": "McAfee",
     "logo": "atd.png",
@@ -20,7 +20,6 @@
             "description": "McAfee ATD IP/Hostname",
             "data_type": "string",
             "required": true,
-            "value_list": [],
             "default": "",
             "order": 0
         },
@@ -35,7 +34,6 @@
             "description": "ATD Username",
             "data_type": "string",
             "required": true,
-            "value_list": [],
             "default": "",
             "order": 1
         },
@@ -43,7 +41,6 @@
             "description": "ATD Password",
             "data_type": "password",
             "required": true,
-            "value_list": [],
             "default": "",
             "order": 2
         },
@@ -51,7 +48,6 @@
             "description": "ATD Analyser Profile",
             "data_type": "numeric",
             "required": true,
-            "value_list": [],
             "default": "",
             "order": 3
         }
