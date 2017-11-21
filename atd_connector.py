@@ -23,7 +23,6 @@ def b64(user, password):
 
 
 def sessionsetup(creds, url_base, verify):
-    requests.packages.urllib3.disable_warnings()
     sessionheaders = { 'VE-SDK-API': creds,
                                     'Content-Type': 'application/json',
                                     'Accept': 'application/vnd.ve.v1.0+json' }
