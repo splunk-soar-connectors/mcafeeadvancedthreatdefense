@@ -161,8 +161,10 @@ class MfeAtdConnector(BaseConnector):
         try:
             # Placeholder to get the file from the vault
             try:
-               success, message, info = rules.vault_info(vault_id=atd_vaultid)
-               info = json.loads(json.dumps(info[0]))
+               info = Vault.get_file_info(vault_id=atd_vaultid)
+               if isinstance(info, list):
+                   info = info[0]
+
                filepath = info['path']
                filename = info['name']
             except:
