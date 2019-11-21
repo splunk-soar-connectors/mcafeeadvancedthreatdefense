@@ -1,14 +1,15 @@
 # Phantom App imports
 import phantom.app as phantom
-import phantom.rules as rules
 import requests
 import json
 import base64
 import time
 
 from atd_consts import *
+from bs4 import UnicodeDammit
 from phantom.base_connector import BaseConnector
 from phantom.action_result import ActionResult
+from phantom.vault import Vault
 
 
 class RetVal(tuple):
@@ -128,18 +129,18 @@ class MfeAtdConnector(BaseConnector):
         self.save_progress("Testing the ATD connectivity")
 
         # Progress
-        self.save_progress(phantom.APP_PROG_CONNECTING_TO_ELLIPSES, atd_ip)
+        self.save_progress(phantom.APP_PROG_CONNECTING_TO_ELLIPSES, UnicodeDammit(atd_ip).unicode_markup.encode('utf-8'))
 
         try:
-           creds = b64(atd_user, atd_pw)
-           atdurl = "https://" + atd_ip + "/php/"
-           headers = sessionsetup(creds, atdurl, self._verify)
-           logout(headers, atdurl, self._verify)
+            creds = b64(atd_user, atd_pw)
+            atdurl = "https://" + atd_ip + "/php/"
+            headers = sessionsetup(creds, atdurl, self._verify)
+            logout(headers, atdurl, self._verify)
 
-        except:
-           self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
-           self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
-           return self.get_status()
+        except Exception as e:
+            self.set_status(phantom.APP_ERROR, "{}. Error: {}".format(ATD_ERR_SERVER_CONNECTION, str(e)))
+            self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
+            return self.get_status()
 
         return self.set_status_save_progress(phantom.APP_SUCCESS, ATD_SUCC_CONNECTIVITY_TEST)
 
@@ -161,37 +162,38 @@ class MfeAtdConnector(BaseConnector):
         try:
             # Placeholder to get the file from the vault
             try:
-               info = Vault.get_file_info(vault_id=atd_vaultid)
-               if isinstance(info, list):
-                   info = info[0]
+                info = Vault.get_file_info(vault_id=atd_vaultid)
+                if not info:
+                    return action_result.set_status(phantom.APP_ERROR, 'File not found in vault ("{}")'.format(atd_vaultid))
+                if isinstance(info, list):
+                    info = info[0]
 
-               filepath = info['path']
-               filename = info['name']
+                filepath = info.get('path')
+                if not filepath:
+                    return action_result.set_status(phantom.APP_ERROR, "Unable to find a path associated with the provided vault ID")
+                filename = info.get('name')
             except:
-               return action_result.set_status(phantom.APP_ERROR, 'File not found in vault ("{}")'.format(atd_vaultid))
+                return action_result.set_status(phantom.APP_ERROR, 'Error while fetching the vault information of the vault ID: ("{}")'.format(atd_vaultid))
 
             creds = b64(atd_user, atd_pw)
             atdurl = "https://" + atd_ip + "/php/"
             headers = sessionsetup(creds, atdurl, self._verify)
             taskid = submit_file(headers, filepath, filename, atd_profile, atdurl, self._verify)
             while True:
-               try:
-                  report = get_report(headers, taskid, atdurl, itype, self._verify)
-                  print report
-                  break
-               except:
-                  time.sleep(10)
-                  pass
+                try:
+                    report = get_report(headers, taskid, atdurl, itype, self._verify)
+                    print report
+                    break
+                except:
+                    time.sleep(10)
+                    pass
 
             logout(headers, atdurl, self._verify)
             action_result.add_data(report)
             action_result.set_status(phantom.APP_SUCCESS, ATD_SUCC_QUERY)
 
-        except:
-            self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
-            self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
-            return self.get_status()
-            action_result.set_status(phantom.APP_ERROR, ATD_ERR_QUERY)
+        except Exception as e:
+            action_result.set_status(phantom.APP_ERROR, "{}. {}. Error: {}".format(ATD_ERR_SERVER_CONNECTION, ATD_ERR_QUERY, str(e)))
             return action_result.get_status()
 
         return action_result.get_status()
@@ -229,11 +231,8 @@ class MfeAtdConnector(BaseConnector):
             action_result.add_data(report)
             action_result.set_status(phantom.APP_SUCCESS, ATD_SUCC_QUERY)
 
-        except:
-            self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
-            self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
-            return self.get_status()
-            action_result.set_status(phantom.APP_ERROR, ATD_ERR_QUERY)
+        except Exception as e:
+            action_result.set_status(phantom.APP_ERROR, "{}. {}. Error: {}".format(ATD_ERR_SERVER_CONNECTION, ATD_ERR_QUERY, str(e)))
             return action_result.get_status()
 
         return action_result.get_status()
