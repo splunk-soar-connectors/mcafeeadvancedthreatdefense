@@ -173,7 +173,7 @@ class MfeAtdConnector(BaseConnector):
                     return action_result.set_status(phantom.APP_ERROR, "Unable to find a path associated with the provided vault ID")
                 filename = info.get('name')
             except:
-                return action_result.set_status(phantom.APP_ERROR, 'Error while fetching the vault information of the vault ID: ("{}")'.format(atd_vaultid))
+                return action_result.set_status(phantom.APP_ERROR, 'Error while fetching the vault information for vault ID: ("{}")'.format(atd_vaultid))
 
             creds = b64(atd_user, atd_pw)
             atdurl = "https://" + atd_ip + "/php/"
