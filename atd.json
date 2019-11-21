@@ -9,12 +9,12 @@
     "product_name": "ATD",
     "product_version_regex": ".*",
     "publisher": "Martin Ohl",
-    "license": "Copyright Martin Ohl 2017",
+    "license": "Copyright Martin Ohl 2017-2019",
     "app_version": "1.2.1",
     "utctime_updated": "2017-11-30T22:44:14.000000Z",
     "package_name": "phantom_mfeatd",
     "main_module": "atd_connector.pyc",
-    "min_phantom_version": "4.5.15922",
+    "min_phantom_version": "4.2.7532",
     "app_wizard_version": "1.0.0",
     "configuration": {
         "atd_ip": {
