@@ -1,7 +1,7 @@
 {
     "appid": "a1ab9a21-0b2e-4e21-9af7-7901ba97c599",
     "name": "McAfee Advanced Threat Defense (ATD)",
-    "description": "This app supports multiple investigate actions on the McAfee ATD appliance",
+    "description": "This app supports multiple investigative actions on the McAfee ATD appliance",
     "type": "sandbox",
     "product_vendor": "McAfee",
     "logo": "logo_atd.svg",
