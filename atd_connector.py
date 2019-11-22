@@ -1,5 +1,7 @@
 # Phantom App imports
 import phantom.app as phantom
+import requests
+import json
 import base64
 import json
 import requests
@@ -7,9 +9,15 @@ import sys
 import time
 
 from atd_consts import *
+from bs4 import UnicodeDammit
 from phantom.base_connector import BaseConnector
 from phantom.action_result import ActionResult
 from phantom.vault import Vault
+
+
+class RetVal(tuple):
+    def __new__(cls, val1, val2):
+        return tuple.__new__(RetVal, (val1, val2))
 
 
 # Define ATD API information
@@ -105,17 +113,16 @@ class ATDConnector(BaseConnector):
         self.save_progress("Testing the ATD connectivity")
 
         # Progress
-        self.save_progress(phantom.APP_PROG_CONNECTING_TO_ELLIPSES, atd_ip)
+        self.save_progress(phantom.APP_PROG_CONNECTING_TO_ELLIPSES, UnicodeDammit(atd_ip).unicode_markup.encode('utf-8'))
 
         try:
             creds = b64(atd_user, atd_pw)
             atdurl = "https://" + atd_ip + "/php/"
             headers = sessionsetup(creds, atdurl, self._verify)
-            profiles(headers, atdurl, self._verify)
             logout(headers, atdurl, self._verify)
 
-        except:
-            self.set_status(phantom.APP_ERROR, ATD_ERR_SERVER_CONNECTION)
+        except Exception as e:
+            self.set_status(phantom.APP_ERROR, "{}. Error: {}".format(ATD_ERR_SERVER_CONNECTION, str(e)))
             self.append_to_message(ATD_ERR_CONNECTIVITY_TEST)
             return self.get_status()
 
@@ -141,9 +148,18 @@ class ATDConnector(BaseConnector):
         try:
             # Placeholder to get the file from the vault
             try:
-                filepath = Vault.get_file_path(atd_vaultid)
+                info = Vault.get_file_info(vault_id=atd_vaultid)
+                if not info:
+                    return action_result.set_status(phantom.APP_ERROR, 'File not found in vault ("{}")'.format(atd_vaultid))
+                if isinstance(info, list):
+                    info = info[0]
+
+                filepath = info.get('path')
+                if not filepath:
+                    return action_result.set_status(phantom.APP_ERROR, "Unable to find a path associated with the provided vault ID")
+                filename = info.get('name')
             except:
-                return action_result.set_status(phantom.APP_ERROR, 'File not found in vault ("{}")'.format(atd_vaultid))
+                return action_result.set_status(phantom.APP_ERROR, 'Error while fetching the vault information for vault ID: ("{}")'.format(atd_vaultid))
 
             creds = b64(atd_user, atd_pw)
             atdurl = "https://" + atd_ip + "/php/"
@@ -151,29 +167,56 @@ class ATDConnector(BaseConnector):
             taskid = submit_file(headers, filepath, atd_profile, atdurl, self._verify)
             while True:
                 try:
-                    report = get_report(headers, taskid, atdurl, itype, self, self._verify)
+                    report = get_report(headers, taskid, atdurl, itype, self._verify)
+                    print report
                     break
                 except:
-                    time.sleep(30)
+                    time.sleep(10)
                     pass
 
             logout(headers, atdurl, self._verify)
             action_result.add_data(report)
             action_result.set_status(phantom.APP_SUCCESS, ATD_SUCC_QUERY)
 
-            date = report['Summary']['Subject']['Timestamp']
-            name = report['Summary']['Subject']['Name']
-            sha1 = report['Summary']['Subject']['sha-1']
-            type = report['Summary']['Subject']['Type']
-            size = report['Summary']['Subject']['size']
-            verdict = report['Summary']['Verdict']['Description']
-            severity = report['Summary']['Verdict']['Severity']
-            summary = {'date': date, 'name': name, 'sha1': sha1, 'type': type, 'size': size, 'verdict': verdict, 'severity': severity}
+        except Exception as e:
+            action_result.set_status(phantom.APP_ERROR, "{}. {}. Error: {}".format(ATD_ERR_SERVER_CONNECTION, ATD_ERR_QUERY, str(e)))
+            return action_result.get_status()
+
+        return action_result.get_status()
+
+    def _handle_detonate_url(self, param):
+
+        self.save_progress("In action handler for: {0}".format(self.get_action_identifier()))
+        action_result = self.add_action_result(ActionResult(dict(param)))
+
+        config = self.get_config()
+        self.debug_print("param", param)
+
+        itype = ''
+        atd_ip = config.get(ATD_IP)
+        atd_user = config.get(ATD_USER)
+        atd_pw = config.get(ATD_PW)
+        atd_profile = config.get(ATD_PROFILE)
+        atd_suburl = param[ATD_SUBURL]
+
+        try:
+            creds = b64(atd_user, atd_pw)
+            atdurl = "https://" + atd_ip + "/php/"
+            headers = sessionsetup(creds, atdurl, self._verify)
+            taskid = submit_url(headers, atd_suburl, atd_profile, atdurl, self._verify)
+            while True:
+               try:
+                  report = get_report(headers, taskid, atdurl, itype, self._verify)
+                  print report
+                  break
+               except:
+                  time.sleep(30)
+                  pass
 
             action_result.update_summary(summary)
 
-        except:
-            action_result.set_status(phantom.APP_ERROR, ATD_ERR_QUERY)
+        except Exception as e:
+            action_result.set_status(phantom.APP_ERROR, "{}. {}. Error: {}".format(ATD_ERR_SERVER_CONNECTION, ATD_ERR_QUERY, str(e)))
             return action_result.get_status()
 
         return action_result.get_status()
