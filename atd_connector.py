@@ -1,10 +1,7 @@
 # Phantom App imports
 import phantom.app as phantom
-<<<<<<< HEAD
 import requests
 import json
-=======
->>>>>>> master
 import base64
 import json
 import requests
@@ -16,14 +13,11 @@ from bs4 import UnicodeDammit
 from phantom.base_connector import BaseConnector
 from phantom.action_result import ActionResult
 from phantom.vault import Vault
-<<<<<<< HEAD
 
 
 class RetVal(tuple):
     def __new__(cls, val1, val2):
         return tuple.__new__(RetVal, (val1, val2))
-=======
->>>>>>> master
 
 
 # Define ATD API information
