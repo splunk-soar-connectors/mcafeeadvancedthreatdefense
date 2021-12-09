@@ -17,20 +17,20 @@
     "min_phantom_version": "4.2.7532",
     "app_wizard_version": "1.0.0",
     "configuration": {
-          "atd_ip": {
+        "atd_ip": {
             "description": "McAfee ATD IP/URL",
             "data_type": "string",
             "required": true,
             "order": 0
-          },
-            "verify_server_cert": {
-              "data_type": "boolean",
-              "description": "Verify server certificate",
-              "required": true,
-              "order": 1,
-              "default": false
-            },
-          "atd_user": {
+        },
+        "verify_server_cert": {
+            "data_type": "boolean",
+            "description": "Verify server certificate",
+            "required": true,
+            "order": 1,
+            "default": false
+        },
+        "atd_user": {
             "description": "Username",
             "data_type": "string",
             "required": true,
@@ -1078,5 +1078,41 @@
                 "height": 5
             }
         }
-    ]
+    ],
+    "pip_dependencies": {
+        "wheel": [
+            {
+                "module": "backports.functools_lru_cache",
+                "input_file": "wheels/backports.functools_lru_cache-1.6.4-py2.py3-none-any.whl"
+            },
+            {
+                "module": "beautifulsoup4",
+                "input_file": "wheels/beautifulsoup4-4.9.1-py2-none-any.whl"
+            },
+            {
+                "module": "certifi",
+                "input_file": "wheels/certifi-2021.10.8-py2.py3-none-any.whl"
+            },
+            {
+                "module": "chardet",
+                "input_file": "wheels/chardet-3.0.4-py2.py3-none-any.whl"
+            },
+            {
+                "module": "idna",
+                "input_file": "wheels/idna-2.10-py2.py3-none-any.whl"
+            },
+            {
+                "module": "requests",
+                "input_file": "wheels/requests-2.25.0-py2.py3-none-any.whl"
+            },
+            {
+                "module": "soupsieve",
+                "input_file": "wheels/soupsieve-1.9.6-py2.py3-none-any.whl"
+            },
+            {
+                "module": "urllib3",
+                "input_file": "wheels/urllib3-1.26.7-py2.py3-none-any.whl"
+            }
+        ]
+    }
 }
